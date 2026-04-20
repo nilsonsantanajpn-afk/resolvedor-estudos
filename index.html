@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Resolvedor de exercícios acadêmicos com narração em áudio">
+<title>Resolvedor — Estudos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,800;1,9..144,400&family=JetBrains+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    },
+    startup: { typeset: false }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f4f1ea;
+    --paper-deep: #ebe6d8;
+    --accent: #c8471c;
+    --accent-soft: #e87d4a;
+    --line: #1a1a1a;
+    --muted: #6b6660;
+    --success: #2d5a3d;
+    --math-bg: #fdfcf7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--paper); color: var(--ink); font-family: 'Instrument Sans', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  body {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(200,71,28,0.04) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(45,90,61,0.03) 0%, transparent 40%);
+  }
+
+  .header {
+    border-bottom: 1.5px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .brand {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .brand em { font-style: italic; font-weight: 400; color: var(--accent); }
+  .brand-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .settings-btn {
+    background: none;
+    border: 1.5px solid var(--line);
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .settings-btn:hover { background: var(--ink); color: var(--paper); }
+
+  .container { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  .hero {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(26,26,26,0.15);
+  }
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(32px, 6vw, 48px);
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+  .hero h1 em { font-style: italic; font-weight: 600; color: var(--accent); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    line-height: 1.5;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--line);
+    padding: 40px 24px;
+    text-align: center;
+    background: var(--paper-deep);
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .upload-zone:hover { background: var(--paper); border-color: var(--accent); }
+  .upload-zone.dragging { background: var(--paper); border-color: var(--accent); border-style: solid; }
+  .upload-icon {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    line-height: 1;
+    font-weight: 300;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .upload-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .upload-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .file-input { display: none; }
+
+  .preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    display: none;
+    align-items: center;
+    gap: 14px;
+  }
+  .preview.active { display: flex; }
+  .preview-thumb {
+    width: 56px;
+    height: 56px;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .preview-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .preview-info { flex: 1; min-width: 0; }
+  .preview-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preview-size { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .preview-remove {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 22px;
+    padding: 4px 10px;
+  }
+  .preview-remove:hover { color: var(--accent); }
+
+  .resolve-btn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 18px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .resolve-btn:hover:not(:disabled) { background: var(--accent); }
+  .resolve-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .resolve-btn .arrow { display: inline-block; margin-left: 8px; transition: transform 0.2s; }
+  .resolve-btn:hover:not(:disabled) .arrow { transform: translateX(4px); }
+
+  .loading {
+    display: none;
+    margin-top: 32px;
+    padding: 24px;
+    text-align: center;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+  }
+  .loading.active { display: block; }
+  .loading-dots {
+    display: inline-flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .loading-dots span {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1.4s infinite ease-in-out;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+  .loading-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  .result {
+    display: none;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(26,26,26,0.15);
+  }
+  .result.active { display: block; }
+  .result-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .result-title {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+
+  .questao {
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    margin-bottom: 16px;
+    padding: 20px;
+  }
+  .questao-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .questao-enunciado {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  .secao-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-top: 14px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .dados-box {
+    background: var(--math-bg);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .calculo-box {
+    background: var(--math-bg);
+    border: 1px solid rgba(26,26,26,0.2);
+    padding: 16px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-size: 15px;
+  }
+  .calculo-box mjx-container { margin: 6px 0; }
+  .explicacao {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink);
+    padding: 4px 0;
+  }
+  .resposta-final {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 14px 16px;
+    margin-top: 12px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .resposta-final .secao-label { color: rgba(244,241,234,0.6); margin-top: 0; }
+  .resposta-final .resposta-texto { font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px; }
+
+  .audio-player {
+    margin-top: 24px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px;
+    border: 1px solid var(--line);
+  }
+  .audio-player-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(244,241,234,0.6);
+    margin-bottom: 4px;
+  }
+  .audio-player-status {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    min-height: 26px;
+  }
+  .audio-controls-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .audio-btn {
+    flex: 1;
+    min-width: 90px;
+    padding: 14px;
+    border: 1.5px solid rgba(244,241,234,0.3);
+    background: transparent;
+    color: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .audio-btn:hover { background: var(--accent); border-color: var(--accent); }
+  .audio-btn.primary { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+  .audio-btn.primary:hover { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .audio-btn.playing { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .audio-btn svg { width: 14px; height: 14px; }
+
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(244,241,234,0.15);
+  }
+  .speed-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(244,241,234,0.6);
+    flex-shrink: 0;
+  }
+  .speed-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--paper);
+    min-width: 44px;
+    text-align: right;
+  }
+  .speed-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(244,241,234,0.2);
+    outline: none;
+    border-radius: 2px;
+  }
+  .speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid var(--paper);
+  }
+  .speed-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: 2px solid var(--paper);
+  }
+
+  .repeat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid rgba(244,241,234,0.15);
+  }
+  .repeat-toggle label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(244,241,234,0.6);
+    cursor: pointer;
+    flex: 1;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    background: rgba(244,241,234,0.2);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch.active { background: var(--accent); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: var(--paper);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left 0.2s;
+  }
+  .toggle-switch.active::after { left: 22px; }
+
+  .actions-row {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+  }
+  .action-btn {
+    flex: 1;
+    padding: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .action-btn:hover { background: var(--ink); color: var(--paper); }
+  .action-btn svg { width: 14px; height: 14px; }
+
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26,26,26,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal.active { display: flex; }
+  .modal-content {
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    padding: 28px;
+    max-width: 440px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .modal-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .modal-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .modal-select {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--paper-deep);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .modal-buttons { display: flex; gap: 8px; }
+  .modal-btn {
+    flex: 1;
+    padding: 12px;
+    border: 1.5px solid var(--line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--paper);
+  }
+  .modal-btn.primary { background: var(--ink); color: var(--paper); }
+  .modal-btn.primary:hover { background: var(--accent); border-color: var(--accent); }
+  .modal-btn.secondary:hover { background: var(--paper-deep); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(120%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 12px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    z-index: 200;
+    transition: transform 0.3s ease-out;
+    max-width: 90%;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--accent); }
+
+  .footer-info {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(26,26,26,0.15);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  input[type="file"] { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="brand">Resolvedor<em>.</em></div>
+    <div class="brand-tag">Estudos · Cálculos · Áudio</div>
+  </div>
+  <button class="settings-btn" onclick="openSettings()">Voz</button>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <h1>Foto do exercício, <em>resposta em áudio</em>.</h1>
+    <p>Anexe a lista. A IA monta os cálculos passo a passo, narra cada questão 2 vezes, com velocidade ajustável.</p>
+  </section>
+
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">+</div>
+    <div class="upload-title">Anexar exercício</div>
+    <div class="upload-sub">Toque para tirar foto ou escolher arquivo</div>
+    <input type="file" id="fileInput" class="file-input" accept="image/*,application/pdf" capture="environment">
+  </div>
+
+  <div class="preview" id="preview">
+    <div class="preview-thumb" id="previewThumb">IMG</div>
+    <div class="preview-info">
+      <div class="preview-name" id="previewName">—</div>
+      <div class="preview-size" id="previewSize">—</div>
+    </div>
+    <button class="preview-remove" onclick="clearFile()" aria-label="Remover">×</button>
+  </div>
+
+  <button class="resolve-btn" id="resolveBtn" onclick="resolve()" disabled>
+    Resolver com cálculos <span class="arrow">→</span>
+  </button>
+
+  <div class="loading" id="loading">
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+    <div class="loading-text" id="loadingText">Analisando o documento...</div>
+  </div>
+
+  <section class="result" id="result">
+    <div class="result-label">Resolução Detalhada</div>
+    <h2 class="result-title" id="resultTitle">Respostas</h2>
+    <div id="questoesContainer"></div>
+
+    <div class="audio-player">
+      <div class="audio-player-title">Player de Áudio</div>
+      <div class="audio-player-status" id="audioStatus">Pronto para reproduzir</div>
+
+      <div class="audio-controls-row">
+        <button class="audio-btn primary" id="playBtn" onclick="toggleAudio()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span id="playLabel">Ouvir</span>
+        </button>
+        <button class="audio-btn" onclick="skipQuestion()" title="Pular questão">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          Pular
+        </button>
+        <button class="audio-btn" onclick="restartAudio()" title="Reiniciar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 12 11 12"/></svg>
+          Reiniciar
+        </button>
+      </div>
+
+      <div class="speed-control">
+        <span class="speed-label">Velocidade</span>
+        <input type="range" id="speedSlider" class="speed-slider" min="0.5" max="2" step="0.05" value="0.75" oninput="updateSpeed(this.value)">
+        <span class="speed-value" id="speedValue">0.75x</span>
+      </div>
+
+      <div class="repeat-toggle">
+        <label for="repeatToggle">Repetir cada questão 2 vezes</label>
+        <div class="toggle-switch active" id="repeatToggle" onclick="toggleRepeat()"></div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="action-btn" onclick="copyResult()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copiar texto
+      </button>
+      <button class="action-btn" onclick="newQuestion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo exercício
+      </button>
+    </div>
+  </section>
+
+  <div class="footer-info">
+    Projeto Acadêmico · Backend Serverless · MathJax · Web Speech API
+  </div>
+</div>
+
+<div class="modal" id="settingsModal">
+  <div class="modal-content">
+    <h3 class="modal-title">Voz do áudio</h3>
+    <p class="modal-desc">Escolha a voz usada para a narração. A preferência fica salva neste navegador.</p>
+    <label class="modal-label" for="voiceSelect">Voz</label>
+    <select id="voiceSelect" class="modal-select"></select>
+    <div class="modal-buttons">
+      <button class="modal-btn secondary" onclick="closeSettings()">Cancelar</button>
+      <button class="modal-btn primary" onclick="saveSettings()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let currentFile = null;
+  let currentFileData = null;
+  let questoesJson = [];
+  let speaking = false;
+  let utterance = null;
+
+  let audioQueue = [];
+  let currentQueueIdx = 0;
+  let audioSpeed = parseFloat(localStorage.getItem('audio_speed') || '0.75');
+  let repeatEnabled = localStorage.getItem('repeat_enabled') !== 'false';
+
+  function openSettings() {
+    populateVoices();
+    document.getElementById('settingsModal').classList.add('active');
+  }
+  function closeSettings() {
+    document.getElementById('settingsModal').classList.remove('active');
+  }
+  function saveSettings() {
+    const voice = document.getElementById('voiceSelect').value;
+    if (voice) localStorage.setItem('tts_voice', voice);
+    closeSettings();
+    toast('Voz salva');
+  }
+  function populateVoices() {
+    const select = document.getElementById('voiceSelect');
+    select.innerHTML = '';
+    const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('pt'));
+    if (voices.length === 0) {
+      const opt = document.createElement('option');
+      opt.textContent = 'Padrão do sistema';
+      opt.value = '';
+      select.appendChild(opt);
+      return;
+    }
+    const saved = localStorage.getItem('tts_voice');
+    voices.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = `${v.name} (${v.lang})`;
+      if (v.name === saved) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragging');
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragging');
+    });
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast('Arquivo muito grande (máx 10MB)', true);
+      return;
+    }
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast('Formato não suportado', true);
+      return;
+    }
+
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      currentFileData = e.target.result.split(',')[1];
+      const thumb = document.getElementById('previewThumb');
+      if (file.type.startsWith('image/')) {
+        thumb.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+      } else {
+        thumb.innerHTML = 'PDF';
+      }
+      document.getElementById('previewName').textContent = file.name;
+      document.getElementById('previewSize').textContent =
+        `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`;
+      document.getElementById('preview').classList.add('active');
+      document.getElementById('resolveBtn').disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearFile() {
+    currentFile = null;
+    currentFileData = null;
+    fileInput.value = '';
+    document.getElementById('preview').classList.remove('active');
+    document.getElementById('resolveBtn').disabled = true;
+    document.getElementById('result').classList.remove('active');
+    document.getElementById('questoesContainer').innerHTML = '';
+    stopAudio();
+  }
+
+  async function resolve() {
+    if (!currentFile) return;
+
+    document.getElementById('resolveBtn').disabled = true;
+    document.getElementById('result').classList.remove('active');
+    document.getElementById('loading').classList.add('active');
+
+    const loadingTexts = [
+      'Enviando para o servidor...',
+      'Lendo o documento...',
+      'Identificando as questões...',
+      'Montando os cálculos...',
+      'Organizando passo a passo...',
+      'Preparando narração...'
+    ];
+    let lti = 0;
+    const loadingInterval = setInterval(() => {
+      lti = (lti + 1) % loadingTexts.length;
+      document.getElementById('loadingText').textContent = loadingTexts[lti];
+    }, 2200);
+
+    try {
+      const response = await fetch('/api/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: currentFileData,
+          mediaType: currentFile.type
+        })
+      });
+
+      clearInterval(loadingInterval);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Erro ${response.status}`);
+      }
+
+      questoesJson = data.questoes || [];
+
+      if (questoesJson.length === 0) {
+        throw new Error('Nenhuma questão foi identificada no documento.');
+      }
+
+      renderQuestoes(questoesJson);
+      buildAudioQueue();
+
+      document.getElementById('loading').classList.remove('active');
+      document.getElementById('result').classList.add('active');
+      document.getElementById('resultTitle').textContent =
+        questoesJson.length === 1 ? 'Resposta' : `${questoesJson.length} Respostas`;
+
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([document.getElementById('questoesContainer')]).catch(console.error);
+      }
+
+      updateStatus('Pronto para reproduzir');
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (err) {
+      clearInterval(loadingInterval);
+      document.getElementById('loading').classList.remove('active');
+      toast('Erro: ' + err.message, true);
+      console.error(err);
+    } finally {
+      document.getElementById('resolveBtn').disabled = false;
+    }
+  }
+
+  function buildAudioQueue() {
+    audioQueue = [];
+    questoesJson.forEach((q, idx) => {
+      const narracao = q.narracao_audio || '';
+      if (!narracao) return;
+
+      audioQueue.push({
+        text: narracao,
+        questaoIdx: idx,
+        questaoNum: q.numero,
+        repeat: 1,
+        totalRepeats: repeatEnabled ? 2 : 1
+      });
+
+      if (repeatEnabled) {
+        audioQueue.push({
+          text: 'Vamos repetir esta questão. ' + narracao,
+          questaoIdx: idx,
+          questaoNum: q.numero,
+          repeat: 2,
+          totalRepeats: 2
+        });
+      }
+    });
+    currentQueueIdx = 0;
+  }
+
+  function renderQuestoes(questoes) {
+    const container = document.getElementById('questoesContainer');
+    container.innerHTML = '';
+
+    questoes.forEach((q) => {
+      const div = document.createElement('div');
+      div.className = 'questao';
+
+      let html = `<div class="questao-num">Questão ${escapeHtml(q.numero || '?')}</div>`;
+      html += `<div class="questao-enunciado">${escapeHtml(q.enunciado || '')}</div>`;
+
+      if (q.dados) {
+        html += `<div class="secao-label">Dados</div>`;
+        html += `<div class="dados-box">${escapeHtml(q.dados)}</div>`;
+      }
+
+      if (q.passos && q.passos.length > 0) {
+        html += `<div class="secao-label">Desenvolvimento</div>`;
+        q.passos.forEach(passo => {
+          if (passo.descricao) {
+            html += `<div class="explicacao">${escapeHtml(passo.descricao)}</div>`;
+          }
+          if (passo.latex) {
+            html += `<div class="calculo-box">$$${passo.latex}$$</div>`;
+          }
+        });
+      }
+
+      html += `<div class="resposta-final">`;
+      html += `<div class="secao-label">Resposta</div>`;
+      if (q.resposta_final_latex) {
+        html += `<div class="calculo-box" style="background:transparent;border-color:rgba(244,241,234,0.3);color:var(--paper);">$$${q.resposta_final_latex}$$</div>`;
+      }
+      html += `<div class="resposta-texto">${escapeHtml(q.resposta_final_texto || '')}</div>`;
+      html += `</div>`;
+
+      div.innerHTML = html;
+      container.appendChild(div);
+    });
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function toggleAudio() {
+    if (speaking) pauseAudio();
+    else playFromQueue();
+  }
+
+  function playFromQueue() {
+    if (audioQueue.length === 0) return;
+    if (currentQueueIdx >= audioQueue.length) currentQueueIdx = 0;
+    speakItem(audioQueue[currentQueueIdx]);
+  }
+
+  function speakItem(item) {
+    if (!('speechSynthesis' in window)) {
+      toast('Navegador não suporta áudio', true);
+      return;
+    }
+
+    speechSynthesis.cancel();
+
+    utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = audioSpeed;
+    utterance.pitch = 1;
+
+    const voiceName = localStorage.getItem('tts_voice');
+    if (voiceName) {
+      const voice = speechSynthesis.getVoices().find(v => v.name === voiceName);
+      if (voice) utterance.voice = voice;
+    }
+
+    utterance.onstart = () => {
+      speaking = true;
+      setPlayButtonState(true);
+      const repeatLabel = item.totalRepeats > 1 ? ` (leitura ${item.repeat} de ${item.totalRepeats})` : '';
+      updateStatus(`Questão ${item.questaoNum}${repeatLabel}`);
+    };
+
+    utterance.onend = () => {
+      speaking = false;
+      currentQueueIdx++;
+      if (currentQueueIdx < audioQueue.length) {
+        setTimeout(() => {
+          if (!speaking) playFromQueue();
+        }, 600);
+      } else {
+        setPlayButtonState(false);
+        updateStatus('Reprodução concluída');
+        currentQueueIdx = 0;
+      }
+    };
+
+    utterance.onerror = (e) => {
+      speaking = false;
+      setPlayButtonState(false);
+      if (e.error !== 'canceled' && e.error !== 'interrupted') {
+        updateStatus('Erro na reprodução');
+      }
+    };
+
+    speechSynthesis.speak(utterance);
+  }
+
+  function pauseAudio() {
+    if (speaking) {
+      speechSynthesis.cancel();
+      speaking = false;
+      setPlayButtonState(false);
+      updateStatus('Pausado');
+    }
+  }
+
+  function stopAudio() {
+    speechSynthesis.cancel();
+    speaking = false;
+    currentQueueIdx = 0;
+    setPlayButtonState(false);
+  }
+
+  function skipQuestion() {
+    if (audioQueue.length === 0) return;
+    const currentItem = audioQueue[currentQueueIdx];
+    if (!currentItem) return;
+
+    const currentQuestaoIdx = currentItem.questaoIdx;
+    while (currentQueueIdx < audioQueue.length && audioQueue[currentQueueIdx].questaoIdx === currentQuestaoIdx) {
+      currentQueueIdx++;
+    }
+
+    speechSynthesis.cancel();
+    speaking = false;
+
+    if (currentQueueIdx < audioQueue.length) {
+      setTimeout(() => playFromQueue(), 300);
+    } else {
+      setPlayButtonState(false);
+      updateStatus('Reprodução concluída');
+      currentQueueIdx = 0;
+    }
+  }
+
+  function restartAudio() {
+    stopAudio();
+    setTimeout(() => playFromQueue(), 200);
+  }
+
+  function setPlayButtonState(playing) {
+    const btn = document.getElementById('playBtn');
+    const label = document.getElementById('playLabel');
+    const svg = btn.querySelector('svg');
+    if (playing) {
+      btn.classList.add('playing');
+      label.textContent = 'Pausar';
+      svg.innerHTML = '<path d="M6 4h4v16H6zm8 0h4v16h-4z"/>';
+    } else {
+      btn.classList.remove('playing');
+      label.textContent = 'Ouvir';
+      svg.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    }
+  }
+
+  function updateStatus(text) {
+    document.getElementById('audioStatus').textContent = text;
+  }
+
+  function updateSpeed(val) {
+    audioSpeed = parseFloat(val);
+    localStorage.setItem('audio_speed', val);
+    document.getElementById('speedValue').textContent = `${parseFloat(val).toFixed(2)}x`;
+
+    if (speaking && utterance) {
+      const itemAtual = audioQueue[currentQueueIdx];
+      speechSynthesis.cancel();
+      setTimeout(() => {
+        if (itemAtual) speakItem(itemAtual);
+      }, 100);
+    }
+  }
+
+  function toggleRepeat() {
+    repeatEnabled = !repeatEnabled;
+    localStorage.setItem('repeat_enabled', repeatEnabled);
+    const toggle = document.getElementById('repeatToggle');
+    if (repeatEnabled) toggle.classList.add('active');
+    else toggle.classList.remove('active');
+
+    const wasPlaying = speaking;
+    stopAudio();
+    if (questoesJson.length > 0) {
+      buildAudioQueue();
+      if (wasPlaying) setTimeout(() => playFromQueue(), 200);
+    }
+    toast(repeatEnabled ? 'Repetição ativada (2x por questão)' : 'Repetição desativada');
+  }
+
+  function copyResult() {
+    const text = questoesJson.map(q => {
+      let s = `Questão ${q.numero}: ${q.enunciado}\n`;
+      if (q.dados) s += `Dados: ${q.dados}\n`;
+      if (q.passos) {
+        q.passos.forEach(p => {
+          if (p.descricao) s += `${p.descricao}\n`;
+          if (p.latex) s += `  ${p.latex}\n`;
+        });
+      }
+      s += `Resposta: ${q.resposta_final_texto || ''}\n`;
+      return s;
+    }).join('\n---\n\n');
+
+    navigator.clipboard.writeText(text).then(() => {
+      toast('Copiado');
+    }).catch(() => toast('Erro ao copiar', true));
+  }
+
+  function newQuestion() {
+    stopAudio();
+    clearFile();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => {
+      el.className = 'toast' + (isError ? ' error' : '');
+    }, 2500);
+  }
+
+  if ('speechSynthesis' in window) {
+    speechSynthesis.addEventListener('voiceschanged', populateVoices);
+    populateVoices();
+  }
+
+  document.getElementById('speedSlider').value = audioSpeed;
+  document.getElementById('speedValue').textContent = `${audioSpeed.toFixed(2)}x`;
+
+  if (!repeatEnabled) {
+    document.getElementById('repeatToggle').classList.remove('active');
+  }
+</script>
+</body>
+</html>

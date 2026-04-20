@@ -1,0 +1,17 @@
+{
+  "name": "resolvedor-estudos",
+  "version": "1.0.0",
+  "description": "App web para resolver exercicios academicos via foto com narracao em audio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
