@@ -1,74 +1,58 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const SYSTEM_PROMPT = `Voce e um professor universitario resolvendo exercicios para um aluno que vai ESCUTAR a resposta em audio sem olhar a tela. Identifique TODAS as questoes do documento e, para cada uma, resolva passo a passo.
+const SYSTEM_PROMPT = `Voce e um professor resolvendo exercicios para um aluno que vai ESCUTAR a resposta em audio.
 
-REGRAS ABSOLUTAS:
-1. SEMPRE mostre o calculo passo a passo quando a questao envolver matematica, fisica, quimica, engenharia ou qualquer calculo numerico
-2. Mostre: formula original, substituicao de valores, operacoes intermediarias, resultado
-3. Nao pule etapas. Prefira mostrar mais passos do que menos
-4. Se a questao for puramente teorica (sem calculo), retorne apenas a resposta em texto
+REGRAS:
+1. Para cada questao com calculo: mostre formula, substituicao de valores, operacoes, resultado final. Sem pular etapas.
+2. Para questao teorica: resposta direta em texto.
+3. Seja eficiente: clareza, nao verbosidade.
 
-REGRAS CRITICAS PARA A NARRACAO DE AUDIO (o aluno vai escutar sem ver a tela):
-- A narracao deve ser 100% autossuficiente e clara para quem SO ESCUTA
-- Comece cada questao anunciando: "Questao numero um..." (sempre por extenso: um, dois, tres)
-- Leia enunciado em voz natural antes de comecar a resolver
-- Liste os DADOS em voz alta: "Temos os seguintes dados. Velocidade inicial igual a dez metros por segundo. Aceleracao igual a dois metros por segundo ao quadrado. Tempo igual a cinco segundos."
-- Traduza TODAS as formulas para linguagem verbal completa:
-  * "v = v0 + a*t" vira "velocidade final e igual a velocidade inicial mais aceleracao vezes tempo"
-  * Fracoes: "\\\\frac{a}{b}" vira "a dividido por b" ou "a sobre b"
-  * Potencias: "x^2" vira "x ao quadrado", "x^3" vira "x ao cubo", "x^5" vira "x elevado a cinco"
-  * Raizes: "sqrt{x}" vira "raiz quadrada de x"
-  * Subscritos: "v_0" vira "v zero" ou "velocidade inicial"
-- Numeros importantes soletre por extenso na PRIMEIRA mencao: em vez de "20 m/s" escreva "vinte metros por segundo"
-- Use pontuacao clara: ponto final no fim de cada passo, virgulas para pausas curtas
-- Narre cada operacao em voz alta: "Vamos substituir os valores. V e igual a dez mais dois vezes cinco. Resolvendo a multiplicacao primeiro, dois vezes cinco e igual a dez. Entao temos v igual a dez mais dez, que resulta em vinte."
-- No final de cada questao, DESTAQUE a resposta: "Portanto, a resposta da questao um e: a velocidade final e vinte metros por segundo. Vinte metros por segundo e a resposta final."
+NARRACAO DE AUDIO (sera lida por voz sintetica):
+- Comece cada questao com "Questao numero [um/dois/tres]..."
+- Leia o enunciado de forma natural
+- Liste dados em voz alta
+- Traduza formulas: "v_0 + a*t" vira "v zero mais a vezes t"; "x^2" vira "x ao quadrado"; "\\\\frac{a}{b}" vira "a dividido por b"
+- Numeros soletre por extenso na primeira mencao ("vinte metros por segundo")
+- Narre operacoes em voz alta com pontuacao clara
+- Finalize cada questao com "Portanto a resposta e [valor]."
 
-FORMATO DE SAIDA: retorne APENAS um JSON valido, sem markdown, sem fences de codigo. JSON puro.
+FORMATO DE SAIDA: JSON puro, sem markdown, sem fences.
 
-Estrutura:
 {
   "questoes": [
     {
       "numero": "1",
       "enunciado": "texto do enunciado",
       "tipo": "calculo" ou "teorica",
-      "dados": "lista dos dados em texto plano, ou null",
+      "dados": "dados em texto, ou null",
       "passos": [
-        {
-          "descricao": "o que esta sendo feito neste passo",
-          "latex": "expressao matematica em LaTeX sem delimitadores, ou null"
-        }
+        { "descricao": "o que esta sendo feito", "latex": "formula em LaTeX sem cifrao, ou null" }
       ],
-      "resposta_final_latex": "resposta em LaTeX sem cifrao, ou null",
-      "resposta_final_texto": "resposta em texto claro",
-      "narracao_audio": "narracao COMPLETA e AUTOSSUFICIENTE desta questao, seguindo todas as regras acima. Deve permitir que alguem feche os olhos e entenda tudo so escutando."
+      "resposta_final_latex": "LaTeX sem cifrao, ou null",
+      "resposta_final_texto": "resposta clara em texto",
+      "narracao_audio": "narracao falada completa desta questao, sem LaTeX, sem simbolos"
     }
   ]
 }
 
-IMPORTANTE: no JSON, use barras duplas para comandos LaTeX. Retorne SOMENTE o JSON, nada antes nem depois.`;
+No JSON, use barras duplas para comandos LaTeX. Retorne SOMENTE o JSON.`;
 
 export default async function handler(req, res) {
-  // CORS (permite chamadas do mesmo domínio e facilita debug)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido. Use POST.' });
   }
 
-  // Verifica se a API key está configurada no ambiente
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY não configurada no ambiente');
+    console.error('ANTHROPIC_API_KEY não configurada');
     return res.status(500).json({
-      error: 'Servidor não configurado. Verifique as variáveis de ambiente no Vercel.'
+      error: 'Servidor não configurado. Contate o administrador.'
     });
   }
 
@@ -79,13 +63,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Dados do arquivo faltando.' });
     }
 
-    // Valida tamanho (base64 ~ 1.37x do original; limite pragmático de 10MB original)
     const approxSize = (fileData.length * 3) / 4;
     if (approxSize > 10 * 1024 * 1024) {
       return res.status(413).json({ error: 'Arquivo muito grande. Máximo 10MB.' });
     }
 
-    // Valida tipos
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
     if (!allowedTypes.includes(mediaType)) {
       return res.status(400).json({ error: 'Tipo de arquivo não suportado.' });
@@ -104,8 +86,11 @@ export default async function handler(req, res) {
 
     const client = new Anthropic({ apiKey });
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-5',
+    // STREAMING: usa stream em vez de esperar resposta completa
+    // - Evita timeout do Vercel Hobby (60s)
+    // - Modelo começa a enviar tokens assim que tem, sem buffer total
+    const stream = await client.messages.stream({
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 8000,
       system: SYSTEM_PROMPT,
       messages: [
@@ -115,21 +100,23 @@ export default async function handler(req, res) {
             contentBlock,
             {
               type: 'text',
-              text: 'Resolva os exercicios deste documento retornando no formato JSON especificado. Mostre todos os calculos passo a passo e prepare a narracao de audio completa e autossuficiente.'
+              text: 'Resolva os exercicios deste documento no formato JSON especificado. Mostre todos os calculos passo a passo e prepare a narracao de audio.'
             }
           ]
         }
       ]
     });
 
-    // Extrai texto da resposta
-    const rawText = response.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n');
+    // Acumula o texto conforme chega (via stream)
+    let fullText = '';
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+        fullText += event.delta.text;
+      }
+    }
 
     // Limpa possíveis fences de markdown
-    const cleanText = rawText
+    const cleanText = fullText
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/, '')
       .replace(/```\s*$/, '')
@@ -140,12 +127,18 @@ export default async function handler(req, res) {
     try {
       parsed = JSON.parse(cleanText);
     } catch (e) {
-      // Fallback: tenta encontrar objeto JSON dentro do texto
       const match = cleanText.match(/\{[\s\S]*\}/);
       if (match) {
-        parsed = JSON.parse(match[0]);
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch (e2) {
+          console.error('Falha no parse do JSON. Resposta:', cleanText.slice(0, 500));
+          return res.status(502).json({
+            error: 'A IA retornou formato inválido. Tente novamente com outra imagem.'
+          });
+        }
       } else {
-        console.error('Falha no parse do JSON. Resposta:', cleanText.slice(0, 500));
+        console.error('JSON não encontrado. Resposta:', cleanText.slice(0, 500));
         return res.status(502).json({
           error: 'A IA retornou formato inválido. Tente novamente com outra imagem.'
         });
@@ -160,7 +153,6 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('Erro na chamada da API:', err);
 
-    // Mensagens específicas por tipo de erro
     if (err.status === 401) {
       return res.status(500).json({
         error: 'Credenciais inválidas no servidor. Contate o administrador.'
@@ -183,7 +175,6 @@ export default async function handler(req, res) {
   }
 }
 
-// Config: permite corpo maior (até 10MB base64 ~ 13MB)
 export const config = {
   api: {
     bodyParser: {
