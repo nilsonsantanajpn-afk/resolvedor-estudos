@@ -770,10 +770,10 @@
     if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
   });
 
-  function handleFile(file) {
-    const maxSize = 10 * 1024 * 1024;
+  async function handleFile(file) {
+    const maxSize = 20 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast('Arquivo muito grande (máx 10MB)', true);
+      toast('Arquivo muito grande (máx 20MB)', true);
       return;
     }
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
@@ -782,23 +782,102 @@
       return;
     }
 
-    currentFile = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      currentFileData = e.target.result.split(',')[1];
-      const thumb = document.getElementById('previewThumb');
-      if (file.type.startsWith('image/')) {
-        thumb.innerHTML = `<img src="${e.target.result}" alt="preview">`;
-      } else {
-        thumb.innerHTML = 'PDF';
+    // PDF não comprime, passa direto
+    if (file.type === 'application/pdf') {
+      await loadFileAsBase64(file);
+      return;
+    }
+
+    // Imagem: comprime se estiver grande (> 800KB) pra evitar erro 413 no Vercel
+    if (file.size > 800 * 1024) {
+      toast('Otimizando imagem...');
+      try {
+        const compressed = await compressImage(file);
+        await loadFileAsBase64(compressed);
+      } catch (err) {
+        console.error('Erro ao comprimir:', err);
+        // Fallback: tenta carregar sem comprimir
+        await loadFileAsBase64(file);
       }
-      document.getElementById('previewName').textContent = file.name;
-      document.getElementById('previewSize').textContent =
-        `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`;
-      document.getElementById('preview').classList.add('active');
-      document.getElementById('resolveBtn').disabled = false;
-    };
-    reader.readAsDataURL(file);
+    } else {
+      await loadFileAsBase64(file);
+    }
+  }
+
+  // Comprime imagem redimensionando e reduzindo qualidade JPEG
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+
+      img.onload = () => {
+        // Redimensiona mantendo proporção, max 1600px (mais que suficiente pra OCR)
+        const maxDim = 1600;
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = (height * maxDim) / width;
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = (width * maxDim) / height;
+          height = maxDim;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // fundo branco (evita problemas com PNG transparente)
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Converte pra JPEG com qualidade 0.82 (ótimo equilíbrio qualidade/tamanho)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error('Falha ao gerar blob'));
+            // Transforma em File pra manter API consistente
+            const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.82
+        );
+      };
+      img.onerror = reject;
+    });
+  }
+
+  // Lê o arquivo como base64 e atualiza UI
+  function loadFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      currentFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentFileData = e.target.result.split(',')[1];
+        const thumb = document.getElementById('previewThumb');
+        if (file.type.startsWith('image/')) {
+          thumb.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+        } else {
+          thumb.innerHTML = 'PDF';
+        }
+        document.getElementById('previewName').textContent = file.name;
+        document.getElementById('previewSize').textContent =
+          `${(file.size / 1024).toFixed(0)} KB · ${file.type.split('/')[1].toUpperCase()}`;
+        document.getElementById('preview').classList.add('active');
+        document.getElementById('resolveBtn').disabled = false;
+        resolve();
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   function clearFile() {
@@ -845,7 +924,24 @@
 
       clearInterval(loadingInterval);
 
-      const data = await response.json();
+      // Tenta parsear como JSON, mas se falhar, mostra erro genérico claro
+      let data;
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        // Backend não retornou JSON - provavelmente erro de infraestrutura
+        if (response.status === 413) {
+          throw new Error('Imagem muito grande. Tente uma foto menor ou tire uma nova.');
+        }
+        if (response.status === 504 || response.status === 408) {
+          throw new Error('Tempo esgotado. Tente novamente com uma imagem mais simples.');
+        }
+        if (response.status >= 500) {
+          throw new Error(`Erro no servidor (${response.status}). Tente novamente em alguns segundos.`);
+        }
+        throw new Error(`Resposta inesperada do servidor (${response.status}). Tente novamente.`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `Erro ${response.status}`);
