@@ -135,3 +135,4 @@ resolvedor-app/
 
 Projeto acadêmico desenvolvido com Claude API (Anthropic) · MathJax · Web Speech API · Vercel Serverless.
 # Deploy trigger seg 20 abr 2026 19:33:26 -03
+# Public seg 20 abr 2026 19:45:30 -03
